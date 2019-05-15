@@ -24,7 +24,7 @@ class LDFSInode:
         try:
             assert len(inode_attr) == 12
             self.id = inode_attr[0]
-            self.parent = inode_attr[1]
+            self.parent_id = inode_attr[1]
             self.name = inode_attr[2]
             self.inode_type = inode_attr[3]
             self.perms = inode_attr[4]

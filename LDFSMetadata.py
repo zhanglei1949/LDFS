@@ -1,4 +1,5 @@
 import sqlite3 as sql
+from sqlite3 import Error
 import time
 from LDFSInode import LDFSInode
 
@@ -20,7 +21,7 @@ class LDFSMetadataSqlite():
         try:
             cursor = self.db.cursor()
             cursor.execute('CREATE TABLE inode (id INTEGER PRIMARY KEY AUTOINCREMENT,' 
-                    'parent INTEGER,'
+                    'parent_id INTEGER,'
                     'name text, '
                     'inode_type char(1),' 
                     'perms text, '
@@ -31,7 +32,7 @@ class LDFSMetadataSqlite():
                     'm_time text, '
                     'a_time text, '
                     'size int, '
-                    'UNIQUE(parent, name))')
+                    'UNIQUE(parent_id, name))')
             cursor.close()
             self.db.commit()
             print("Initialization succeed")
@@ -39,24 +40,27 @@ class LDFSMetadataSqlite():
             print("Reinitialization failed: creating table error")
     def get_inodes(self):
         try:
-            cursor  = self.db.cursor()
-            rows = cursor.execute('select * from  inode')
-            res = []
-            for row in rows:
-                res.append(row)
+            cursor = self.db.cursor()
+            cursor.execute('select * from  inode')
+            rows = cursor.fetchall()
             cursor.close()
-        except:
-            print("Fetching inode failed")
+        except Error, e:
+            print("Get inodes error")
+            print(e)
+        res = []
+        for row in rows:
+            res.append(row)
         return res
 
     def add_inode(self, inode):
         try:
             cursor = self.db.cursor()
-            cursor.execute('insert into inode (parent, name, inode_type, perms, uid, gid, attrs,c_time, m_time, a_time, size) values (?,?,?,?,?,?,?,?,?,?,?)', (inode.parent_id, inode.name, inode.inode_type, inode.perms, inode.uid, inode.gid, inode.attrs, inode.c_time, inode.m_time, inode.a_time, inode.size))
+            cursor.execute('insert into inode (parent_id, name, inode_type, perms, uid, gid, attrs,c_time, m_time, a_time, size) values (?,?,?,?,?,?,?,?,?,?,?)', (inode.parent_id, inode.name, inode.inode_type, inode.perms, inode.uid, inode.gid, inode.attrs, inode.c_time, inode.m_time, inode.a_time, inode.size))
             cursor.close()
             self.db.commit()
-        except:
+        except Error, e:
             print("Adding node error %s" % (inode.name))
+            print(e)
     def delete_inode(self, inode_id):
         try:
             cursor = self.db.cursor()
@@ -64,8 +68,9 @@ class LDFSMetadataSqlite():
             cursor.close()
             self.db.commit()
             return 1
-        except:
+        except Error, e:
             print("Failed to delete inode %d" % (inode_id))
+            print(e)
             return 0
 
     def search_inode_with_parent(self, parent_inode_id, filename):
@@ -73,13 +78,15 @@ class LDFSMetadataSqlite():
         res = []
         try:
             cursor = self.db.cursor()
-            rows = cursor.execute('select * from inode where parent = ? and name = ?', (parent_inode_id, filename))
-            for row in rows:
-                res.append(row)
+            cursor.execute('select * from inode where parent_id = ? and name = ?', (parent_inode_id, filename))
+            rows = cursor.fetchall()    
             cursor.close()
-        except:
+        except Error, e:
             print("Failed to search %s under inode %d" % (filename, parent_inode_id))
+            print(e)
             return 0
+        for row in rows:
+            res.append(row)
         assert len(res) == 1
         return res[0]
 
@@ -88,14 +95,13 @@ class LDFSMetadataSqlite():
         res = []
         try:
             cursor = self.db.cursor()
-            rows = cursor.execute('select * from inode where parent = ?', (inode_id, ))
-            #rows = cursor.execute('select * from inode where parent = 1')
-            for row in rows:
-                res.append(row)
+            rows = cursor.execute('select * from inode where parent_id = ?', (inode_id, ))
             cursor.close()
-        except:
+        except Error, e:
             print("Failed to get child inode for inode %d" % (inode_id))
-        
+            print(e)
+        for row in rows:
+            res.append(row)
         return res
 
 if __name__ == '__main__':

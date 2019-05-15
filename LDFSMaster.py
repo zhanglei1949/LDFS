@@ -8,12 +8,12 @@ from LDFSInode import LDFSInode
 class LDFSMaster:
     def __init__(self, metadata_backend, rootfs, db_filename, init):
          #Currently don't store real data, just fake metadata
-         self.metadata_backend = backend
+         self.metadata_backend = metadata_backend
          self.rootfs = rootfs
          self.db_filename = db_filename
          self.root_inode_id = 0
-         self.inode_table = {}
-         self.inode_map = {}
+         self.inode_table = {}# {inode.id : LDFSInode}
+         self.inode_map = {} # {inode.id : inode.id}
 
          #connect to db
          assert self.metadata_backend == 'sqlite'
@@ -25,11 +25,26 @@ class LDFSMaster:
              self.metadata.init()
          # Load inodes into inode_table
          self.load_inodes()
-    def load_inodes():
+    def printStat(self):
+        for k in self.inode_table:
+            print(self.inode_table[k].name, self.inode_table[k].id),
+    def exist(self, filename, parent_inode_id):
+        if parent_inode_id not in self.inode_table:
+            return 0
+        child_ids = self.inode_map[parent_inode_id]
+        for id_ in child_ids:
+            child_inode = self.inode_table[id_]
+            if (child_inode.name == filename):
+                return 1
+        return 0
+
+    def load_inodes(self):
         
+        print("Loading inodes")
         try:
             #cursor = self.metadata.db.cursor()
             inodes = self.metadata.get_inodes()
+            print("Get %d inodes from db" % len(inodes))
             #Load the inodes, and store them in memory
             for row in inodes:
                 inode = LDFSInode()
@@ -41,7 +56,7 @@ class LDFSMaster:
                     self.inode_map[inode.parent_id] = [inode.id]
                 self.inode_table[inode.id] = inode
             if len(self.inode_table) == 0:
-                root_inode = self.create_inode('/')
+                root_inode = self.create_inode('/', 0)
                 #Dump root inode into metadata in the CREATE_NODE function
                 assert root_inode != 0
                 #Assertion error if creation failed
@@ -49,40 +64,51 @@ class LDFSMaster:
                 root_inode = self.get_inode_by_name('/')
 
             self.root_inode_id = root_inode.id
+            print("Load %s inodes from db" % (len(self.inode_table)))
+        except Exception, e:
+            print(e)
+            exit("Load inodes failed")
+            
 
-    def create_inode(self, filename, parent_inode_id = -1):
+    def create_inode(self, filename, parent_inode_id): # default parent node is root 0
+        print("creating inode %s under %d" % (filename, parent_inode_id))
         filename_last = os.path.basename(filename)
+        if (filename == '/'):
+            filename_last = '/'
+        # Get the last string of filename
         if (self.exist(filename, parent_inode_id)):
             print('File already exists')
             return 0
         else:
             if (filename == '/'):
-                inode = LDFSInode({"inode_type":"d", "name": '/', "parent_id" : '-1', "perms": 777, "uid" : 0, "gid": 0, "attrs":"", "c_time":int(time.time()), "m_time":int(time.time()), "a_time":int(time.time()), "size" : 0 })
+                inode = LDFSInode({"inode_type":"d", "name": '/', "parent_id" : '0', "perms": 777, "uid" : 0, "gid": 0, "attrs":"", "c_time":int(time.time()), "m_time":int(time.time()), "a_time":int(time.time()), "size" : 0 })
             else:
                 inode = LDFSInode({"inode_type":"d", "name": filename_last, "parent_id" : parent_inode_id, "perms": 777, "uid" : 0, "gid": 0, "attrs":"", "c_time":int(time.time()), "m_time":int(time.time()), "a_time":int(time.time()), "size" : 0 })
             self.metadata.add_inode(inode)
             # Write the new node to the database
-            
             #But we don't know the inode_id for this inode, so we query back for inode it
             rows = self.metadata.search_inode_with_parent(parent_inode_id, filename_last) 
+            # rows's length is at most 1
             if rows == 0:
                 print('Create inode failed')
                 return 0
             else:
                 inode.id = rows[0]
+                print("Successfully create inode %d" % (inode.id))
                 assert inode.id not in self.inode_table
+                # Update inode table and inode map
                 self.inode_table[inode.id] = inode
                 if parent_inode_id in self.inode_map:
                     self.inode_map[parent_inode_id].append(inode.id)
                 else:
-                    self.inode_map[parent_inoded_id] = [inode_id]
+                    self.inode_map[parent_inode_id] = [inode.id]
             return inode
 
 
         def get_inode_by_name(self, filename):
             #Note that filename is the full path
             if (filename == '/'):
-                return self.inode_table['0']
+                return self.inode_table['1']
             else:
                 filename_splited = filename.split('/')[1:] # abanding the leading \/
                 parent_inode_id = '0'
@@ -105,7 +131,6 @@ class LDFSMaster:
                     return 0
                 else:
                     return self.inode_table[res]
-
 
 def main():
     parser = argparse.ArgumentParser(description='LDFS master server')
@@ -132,7 +157,7 @@ def main():
     #Create server
     server = SimpleXMLRPCServer((host, port), requestHandler=RequestHandler, allow_none=True, logRequests=False)
     server.register_introspection_functions()
-    server.register_instance(LDFSMaster(backend, rootfs, db_filename, init)
+    server.register_instance(LDFSMaster(backend, rootfs, db_filename, init))
     server.serve_forever()
 if __name__ == '__main__':
     main()
