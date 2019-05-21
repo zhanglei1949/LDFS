@@ -3,7 +3,7 @@ from sqlite3 import Error
 import time
 from LDFSInode import LDFSInode
 
-class LDFSMetadataSqlite():
+class LDFSMetadataSqlite:
     # Storing metadata in python-sqlite3
     def __init__(self, db_path):
         self.db_file = db_path
@@ -17,6 +17,7 @@ class LDFSMetadataSqlite():
             cursor.close()
             self.db.commit()
         except:
+            self.db.rollback()
             print("Reinitialization failed: droping error")
         try:
             cursor = self.db.cursor()
@@ -37,6 +38,7 @@ class LDFSMetadataSqlite():
             self.db.commit()
             print("Initialization succeed")
         except:
+            self.db.rollback()
             print("Reinitialization failed: creating table error")
     def get_inodes(self):
         try:
@@ -47,6 +49,7 @@ class LDFSMetadataSqlite():
         except Error, e:
             print("Get inodes error")
             print(e)
+            return 0
         res = []
         for row in rows:
             res.append(row)
@@ -58,9 +61,12 @@ class LDFSMetadataSqlite():
             cursor.execute('insert into inode (parent_id, name, inode_type, perms, uid, gid, attrs,c_time, m_time, a_time, size) values (?,?,?,?,?,?,?,?,?,?,?)', (inode.parent_id, inode.name, inode.inode_type, inode.perms, inode.uid, inode.gid, inode.attrs, inode.c_time, inode.m_time, inode.a_time, inode.size))
             cursor.close()
             self.db.commit()
+            return 1
         except Error, e:
+            self.db.rollback()
             print("Adding node error %s" % (inode.name))
             print(e)
+            return 0
     def delete_inode(self, inode_id):
         try:
             cursor = self.db.cursor()
@@ -69,6 +75,7 @@ class LDFSMetadataSqlite():
             self.db.commit()
             return 1
         except Error, e:
+            self.db.rollback()
             print("Failed to delete inode %d" % (inode_id))
             print(e)
             return 0
@@ -95,14 +102,28 @@ class LDFSMetadataSqlite():
         res = []
         try:
             cursor = self.db.cursor()
-            rows = cursor.execute('select * from inode where parent_id = ?', (inode_id, ))
+            cursor.execute('select * from inode where parent_id = ?', (inode_id, ))
+            rows = cursor.fetchall()
             cursor.close()
         except Error, e:
             print("Failed to get child inode for inode %d" % (inode_id))
             print(e)
+            return 0
         for row in rows:
             res.append(row)
         return res
+    def update_name(self, inode_id, new_filename):
+        try:
+            cursor = self.db.cursor()
+            cursor.execute('update inode set name  = ? where id = ?', (new_filename, inode_id))
+            cursor.close()
+            self.db.commit()
+            return 1
+        except Error, e:
+            self.db.rollback()
+            print("Failed to update name for inode %d" % (inode_id))
+            print(e)
+            return 0
 
 if __name__ == '__main__':
     sql = LDFSMetadataSqlite('/tmp/ldfs.db')

@@ -1,6 +1,6 @@
 import os
 class LDFSInode:
-    def __init__(self, params):
+    def __init__(self, params = None):
         self.id = ""
         self.name = ""
         self.inode_type = ""
@@ -37,7 +37,19 @@ class LDFSInode:
             self.size = int(inode_attr[11])
         except:
             print("update inode" + self.id + "failed")
-
+    def toDict(self):
+        res = {}
+        res['id'] = self.id
+        res['name'] = self.name
+        res['inode_type'] = self.inode_type
+        res['uid'] = self.uid
+        res['gid'] = self.gid
+        res['attrs'] = self.attrs
+        res['c_time'] = self.c_time
+        res['m_time'] = self.m_time
+        res['a_time'] = self.a_time
+        res['size'] = self.size
+        return res
 if __name__ == '__main__':
     params = { 'id' : 1, 'name' : 'first', 'inode_type' : 'file'}
     node = LDFSInode(params)
