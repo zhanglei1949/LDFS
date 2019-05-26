@@ -10,15 +10,17 @@ from LDFSInode import LDFSInode
 
 class RequestHandler(SimpleXMLRPCRequestHandler):
     rpc_path = ('/RPC2',)
-class LDFSMetadataSqlite:
+class LDFSMetadataServer:
     # Storing metadata in python-sqlite3
     def __init__(self, db_path):
         self.db_file = db_path
         self.db = sql.connect(self.db_file)
         #self.cursor = self.db.cursor()
+        self.inode_table = {}
     def init(self):
         #Initialize the database
         try:
+            print("Deleting old tables")
             cursor = self.db.cursor()
             cursor.execute('DROP TABLE IF EXISTS INODE')
             cursor.close()
@@ -27,8 +29,9 @@ class LDFSMetadataSqlite:
             self.db.rollback()
             print("Reinitialization failed: droping error")
         try:
+            print("creating new tables")
             cursor = self.db.cursor()
-            cursor.execute('CREATE TABLE inode (id INTEGER PRIMARY KEY AUTOINCREMENT,' 
+            cursor.execute('CREATE TABLE inode (id INTEGER PRIMARY KEY,' 
                     'parent_id INTEGER,'
                     'name text, '
                     'inode_type char(1),' 
@@ -62,20 +65,24 @@ class LDFSMetadataSqlite:
             res.append(row)
         return res
 
-    def add_inode(self, inode):
+    def add_inode(self, inode_dict):
         try:
+            print("Trying adding inode %s" % (inode_dict['name']))
             cursor = self.db.cursor()
-            cursor.execute('insert into inode (parent_id, name, inode_type, perms, uid, gid, attrs,c_time, m_time, a_time, size) values (?,?,?,?,?,?,?,?,?,?,?)', (inode.parent_id, inode.name, inode.inode_type, inode.perms, inode.uid, inode.gid, inode.attrs, inode.c_time, inode.m_time, inode.a_time, inode.size))
+            inode = LDFSInode(inode_dict)
+            cursor.execute('insert into inode (id, parent_id, name, inode_type, perms, uid, gid, attrs,c_time, m_time, a_time, size) values (?,?,?,?,?,?,?,?,?,?,?,?)', (inode.id, inode.parent_id, inode.name, inode.inode_type, inode.perms, inode.uid, inode.gid, inode.attrs, inode.c_time, inode.m_time, inode.a_time, inode.size))
+            print("added")
             cursor.close()
             self.db.commit()
             return 1
         except Error, e:
             self.db.rollback()
-            print("Adding node error %s" % (inode.name))
+            print("Adding node error %s" % (inode_dict['name']))
             print(e)
             return 0
     def delete_inode(self, inode_id):
         try:
+            print("Deleting inode %s" %(inode_id))
             cursor = self.db.cursor()
             cursor.execute('delete from inode where id = ?', (inode_id, ))
             cursor.close()
@@ -119,10 +126,10 @@ class LDFSMetadataSqlite:
         for row in rows:
             res.append(row)
         return res
-    def update_name(self, inode_id, new_filename):
+    def update_name_parent_id(self, inode_id, new_filename, new_parent_id):
         try:
             cursor = self.db.cursor()
-            cursor.execute('update inode set name  = ? where id = ?', (new_filename, inode_id))
+            cursor.execute('update inode set name  = ?,parent_id = ? where id = ?', (new_filename, new_parent_id, inode_id))
             cursor.close()
             self.db.commit()
             return 1
@@ -131,14 +138,37 @@ class LDFSMetadataSqlite:
             print("Failed to update name for inode %d" % (inode_id))
             print(e)
             return 0
-
+    '''
+    def load_inodes(self):
+        inodes = self.get_inodes()
+        print("Get %d inodes from db" % len(inodes))
+        #Load the inodes, and store them in memory
+        for row in inodes:
+            inode = LDFSInode()
+            inode.update(row)
+            if (str(inode.id) in self.inode_table):
+                raise Exception("%s already in memory table" %(str(inode.id)))
+            self.inode_table[str(inode.id)] = inode
+        if len(self.inode_table) == 0:
+            root_inode = self.create_inode('/', '0')
+            #Dump root inode into metadata in the CREATE_NODE function
+            assert root_inode != 0
+            #Assertion error if creation failed
+        else:
+            root_inode = self.get_inode_by_name('/')
+        
+        self.root_inode_id = root_inode.id
+        print("Load %s inodes from db" % (len(self.inode_table)))
+    '''
+    def get_status(self):
+        return 0
 if __name__ == '__main__':
     host = 'localhost'
-    port = '9524'
+    port = 9524
     db_path = '/tmp/data.db'
     server = SimpleXMLRPCServer((host, port), requestHandler=RequestHandler, allow_none=True, logRequests=False)
     server.register_introspection_functions()
-    server.register_instance(LDFSMetadataSqlite(db_path))
+    server.register_instance(LDFSMetadataServer(db_path))
     server.serve_forever()
 '''
     sql = LDFSMetadataSqlite('/tmp/ldfs.db')
