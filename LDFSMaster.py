@@ -19,7 +19,7 @@ class LDFSMaster:
     def __init__(self, metadata_backend, rootfs, db_filename, init, metadata_server_conf):
         #Currently don't store real data, just fake metadata
         self.metadata_backend = metadata_backend
-        self.multiplication = 1
+        self.multiplication = 2
         self.rootfs = rootfs
         self.db_filename = db_filename# This file stor the metadata for metadata
         
