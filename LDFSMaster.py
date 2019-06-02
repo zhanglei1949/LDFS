@@ -143,7 +143,7 @@ class LDFSMaster:
         inode = LDFSInode({"id" : "1", "inode_type":"d", "name": '/', "parent_id" : '0', "perms": 777, "uid" : 0, "gid": 0, "attrs":"", "c_time":int(time.time()), "m_time":int(time.time()), "a_time":int(time.time()), "size" : 0 })
         # Decide which server to save the root node
         print(inode.id)
-        servers = myhash(str(inode.id), self.multiplication)
+        servers = myhash(str(inode.id), self.multiplication, self.num_metadata_servers)
         for server in servers:
             self.metadata_servers[server].add_inode(inode.toDict())
         # Update inode table and inode map
@@ -191,7 +191,7 @@ class LDFSMaster:
                 return self.inode_table[res]
     def delete_file(self, filename, res):
         print("Inode.id for file %s is %s" %(filename, str(res.id)))
-        servers = myhash(res.id, self.multiplication)
+        servers = myhash(res.id, self.multiplication, self.num_metadata_servers)
         deletion = 0
         for server in servers:
             deletion += self.metadata_servers[server].delete_inode(res.id)
@@ -248,7 +248,7 @@ class LDFSMaster:
             return 0
         else:
             print("Inode.id for file %s is %s" %(filename, res.id))
-            servers = myhash(res.id, self.multiplication)
+            servers = myhash(res.id, self.multiplication, self.num_metadata_servers)
             rename_res = 0
             for server in servers:
                 rename_res += self.metadata_servers[server].update_name_parent_id(res.id, new_filename_base, str(new_parent.id))
@@ -302,7 +302,7 @@ class LDFSMaster:
             inode.parent_id = self.get_parent_inode_from_filename(filename).id
             if (inode.parent_id == 0):
                 raise Exception("Direction doesn't exists" + os.path.dirname(filename))
-            servers = myhash(inode.id, self.multiplication)
+            servers = myhash(inode.id, self.multiplication, self.num_metadata_servers)
             success = 0
             for server in servers:
                 success += self.metadata_servers[server].add_inode(inode.toDict())

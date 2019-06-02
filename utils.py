@@ -19,7 +19,6 @@ def load_metadata_conf(filename):
     
     return metadata_servers
     # We assume the metadata servers are already running
-    self.metadata_servers = [xmlrpclib.ServerProxy(x['addr']) for x in metadata_servers]
 
 def myhash(inode_id, multiplication, num_candidates):
     #select multiplication servers from num_candidates
