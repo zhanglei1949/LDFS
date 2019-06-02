@@ -19,7 +19,7 @@ class LDFSMaster:
     def __init__(self, metadata_backend, rootfs, db_filename, init, metadata_server_conf):
         #Currently don't store real data, just fake metadata
         self.metadata_backend = metadata_backend
-        self.multiplication = 1
+        self.multiplication = 2
         self.rootfs = rootfs
         self.db_filename = db_filename# This file stor the metadata for metadata
         
@@ -43,6 +43,7 @@ class LDFSMaster:
         for server in self.metadata_servers_conf:
             self.metadata_servers.append(xmlrpclib.ServerProxy('http://' + self.metadata_servers_conf[server]))
         # self.metadata[0] = rpc to 192.168.1.34
+        self.num_metadata_servers = len(self.metadata_servers)
         if init == 1:
             self.init()
         # Load inodes into inode_table

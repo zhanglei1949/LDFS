@@ -163,7 +163,7 @@ class LDFSMetadataServer:
     def get_status(self):
         return 0
 if __name__ == '__main__':
-    host = 'localhost'
+    host = '192.168.1.34'
     port = 9524
     db_path = '/tmp/data.db'
     server = SimpleXMLRPCServer((host, port), requestHandler=RequestHandler, allow_none=True, logRequests=False)
