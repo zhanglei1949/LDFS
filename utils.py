@@ -25,5 +25,5 @@ def myhash(inode_id, multiplication, num_candidates):
     hash_seed = 23
     res = []
     for i in range(multiplication):
-        res.append((inode_id + hash_seed + i) % num_candidates)
+        res.append((int(inode_id) + hash_seed + i) % num_candidates)
     return res
