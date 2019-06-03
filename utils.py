@@ -22,8 +22,8 @@ def load_metadata_conf(filename):
 
 def myhash(inode_id, multiplication, num_candidates):
     #select multiplication servers from num_candidates
-    start = 0
     hash_seed = 23
     res = []
     for i in range(multiplication):
-        res.append((start+hash_seed) % num_candidates + i)
+        res.append((inode_id + hash_seed + i) % num_candidates)
+    return res
